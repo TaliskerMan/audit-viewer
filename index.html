@@ -14,6 +14,15 @@
 
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  ========================================================================
+  DESIGN INTENT:
+  This is a web-based dashboard tool designed to parse and visually present
+  systemd hardening audits (hardening_audit.json). It simplifies system security 
+  analysis by categorizing system services by exposure predicates (e.g. UNSAFE, 
+  EXPOSED, MEDIUM, OK) and rendering them in an interactive, responsive grid 
+  with smooth visual transitions, helping admins quickly spot vulnerable services.
+  ========================================================================
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -342,11 +351,34 @@
   </div>
 
 <script>
+  /**
+   * Holds the parsed systemd hardening audit records loaded from the JSON file.
+   * Each record typically contains fields like: unit, predicate, happy, exposure.
+   * @type {Array<Object>}
+   */
   let auditData = [];
+
+  /**
+   * Represents the currently selected filter category (e.g. "UNSAFE", "EXPOSED").
+   * Defaults to "UNSAFE" to immediately highlight the most vulnerable services first.
+   * @type {string}
+   */
   let activeTab = "UNSAFE";
+
+  /**
+   * Defines the security categorization hierarchy order from most severe to safest.
+   * This is used to prioritize the tab display order.
+   * @type {string[]}
+   */
   const order = ["UNSAFE", "EXPOSED", "MEDIUM", "OK"];
+
+  /**
+   * Lists the unique predicates found in the uploaded audit data, sorted by severity order.
+   * @type {string[]}
+   */
   let predicates = [];
 
+  // Listen for file upload selection to initiate parsing of the JSON report.
   document.getElementById('file-upload').addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -363,15 +395,20 @@
     reader.readAsText(file);
   });
 
+  /**
+   * Prepares and initializes the dashboard state once a JSON file is parsed.
+   * It sorts the services alphabetically, extracts existing predicates, prioritizes
+   * the active tab based on severity, and triggers rendering of UI components.
+   */
   function initDashboard() {
-    // Sort alphabetically by unit
+    // Sort alphabetically by systemd unit name for predictable navigation
     auditData.sort((a, b) => {
       const unitA = a.unit || "";
       const unitB = b.unit || "";
       return unitA.localeCompare(unitB);
     });
 
-    // Extract unique predicates
+    // Extract unique predicates dynamically to support diverse reports, then sort by severity order
     predicates = [...new Set(auditData.map(item => item.predicate))]
       .sort((a, b) => {
         let indexA = order.indexOf(a);
@@ -381,6 +418,7 @@
         return indexA - indexB;
       });
 
+    // Default to the first (highest severity) category found in the data if the current active tab is absent
     if (!predicates.includes(activeTab) && predicates.length > 0) {
       activeTab = predicates[0];
     }
@@ -389,6 +427,11 @@
     renderGrid();
   }
 
+  /**
+   * Dynamically constructs and updates navigation tabs at the top of the page.
+   * Each tab represents a security category, displaying the predicate name and the
+   * total count of services matching that predicate. Clicking a tab updates the active view.
+   */
   function renderTabs() {
     const tabsContainer = document.getElementById('tabs');
     tabsContainer.innerHTML = '';
@@ -409,12 +452,18 @@
     });
   }
 
+  /**
+   * Renders the grid of systemd service cards matching the active security category.
+   * Builds cards with color-coded borders and exposure metrics, applying a staggered
+   * entry animation delay to provide a premium, smooth visual feel.
+   */
   function renderGrid() {
     const gridContainer = document.getElementById('grid');
     gridContainer.innerHTML = '';
     
     const filtered = auditData.filter(d => d.predicate === activeTab);
     
+    // Display a clean empty state if no services belong to the active category
     if (filtered.length === 0) {
       gridContainer.innerHTML = `
         <div class="empty-state">
@@ -425,11 +474,13 @@
       return;
     }
     
+    // Build and append each service card to the grid
     filtered.forEach((item, index) => {
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.predicate = item.predicate;
-      // Staggered animation
+      
+      // Calculate a staggered delay for the fade-in animation to create a polished loading sequence
       card.style.animationDelay = `${Math.min(index * 0.03, 1)}s`;
       
       card.innerHTML = `
@@ -447,7 +498,7 @@
       
       gridContainer.appendChild(card);
       
-      // Trigger reflow to restart animation and add 'show' class
+      // Force a layout reflow to ensure the CSS transition/animation starts correctly, then apply visibility class
       void card.offsetWidth;
       card.classList.add('show');
     });
