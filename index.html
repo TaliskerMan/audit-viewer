@@ -384,11 +384,11 @@
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function(event) {
       try {
-        auditData = JSON.parse(e.target.result);
+        auditData = JSON.parse(event.target.result);
         initDashboard();
-      } catch (err) {
+      } catch (error) {
         alert("Failed to parse the file. Please ensure it is a valid JSON file.");
       }
     };
@@ -402,9 +402,9 @@
    */
   function initDashboard() {
     // Sort alphabetically by systemd unit name for predictable navigation
-    auditData.sort((a, b) => {
-      const unitA = a.unit || "";
-      const unitB = b.unit || "";
+    auditData.sort((recordA, recordB) => {
+      const unitA = recordA.unit || "";
+      const unitB = recordB.unit || "";
       return unitA.localeCompare(unitB);
     });
 
@@ -436,19 +436,19 @@
     const tabsContainer = document.getElementById('tabs');
     tabsContainer.innerHTML = '';
     
-    predicates.forEach(pred => {
-      const count = auditData.filter(d => d.predicate === pred).length;
-      const btn = document.createElement('button');
-      btn.className = `tab ${pred === activeTab ? 'active' : ''}`;
-      btn.dataset.target = pred;
-      btn.innerHTML = `${pred} <span class="badge">${count}</span>`;
-      btn.onclick = () => {
-        if (activeTab === pred) return;
-        activeTab = pred;
+    predicates.forEach(predicate => {
+      const count = auditData.filter(record => record.predicate === predicate).length;
+      const button = document.createElement('button');
+      button.className = `tab ${predicate === activeTab ? 'active' : ''}`;
+      button.dataset.target = predicate;
+      button.innerHTML = `${predicate} <span class="badge">${count}</span>`;
+      button.onclick = () => {
+        if (activeTab === predicate) return;
+        activeTab = predicate;
         renderTabs();
         renderGrid();
       };
-      tabsContainer.appendChild(btn);
+      tabsContainer.appendChild(button);
     });
   }
 
@@ -461,7 +461,7 @@
     const gridContainer = document.getElementById('grid');
     gridContainer.innerHTML = '';
     
-    const filtered = auditData.filter(d => d.predicate === activeTab);
+    const filtered = auditData.filter(record => record.predicate === activeTab);
     
     // Display a clean empty state if no services belong to the active category
     if (filtered.length === 0) {
